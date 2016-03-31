@@ -1,5 +1,9 @@
+import datetime
+
+today=datetime.date.today()
 for j in range (10):
-	for i in range(10):
-		print (str(j)+", "+str(i))
-		if i==3: break
+	if j==2: continue
+	delta=datetime.timedelta(days=j)
+	xday=today-delta
+	print(str(j)+ " - "+ str(xday) )
 
