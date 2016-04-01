@@ -8,12 +8,18 @@ import sqlite3
 import threading
 import time
 import queue
+from sqlalchemy import create_engine
 
 
 threads=[]
 thread_complete=[]
 q=queue.Queue()
+q_sec_num=queue.Queue()
 
+
+engine = create_engine('sqlite:///test.db')
+def insert_db(df):
+    df.to_sql('tick_data', engine, if_exists='append')
 
 def connect_DB():
 	global con,cur
@@ -35,22 +41,22 @@ def read_ticks(sec_num,date):
 	#df.to_sql('tick_data',con,if_exists='append')
 	#print("%s, %s, %d entries added to database"%(str(sec_num),str(date),len(df.index)))
 	return df
-def fetcher(thread_id,start_num=0,end_num=3000,days=900,delay=10):
-	print("fetching...from %d to %d"%(start_num,end_num))
+def fetcher(thread_id,days=900):
 	if days<1 :
 		print('must input more than one day')
 		return None
 
-	today=datetime.date.today()
-	for j in range(start_num,end_num+1):
-		sec_num=600000+j
+	while q_sec_num.qsize()>0 :
+		sec_num=q_sec_num.get()
+		today=datetime.date.today()
 		for i in range(1,days):
 			delta=delta=datetime.timedelta(days=i)
 			xday=today-delta
-			#print("T-%-2d reading %s %s"%(thread_id, str(sec_num),str(xday)))
+			print("T-%-2d fetch %s %s"%(thread_id,str(sec_num),str(xday)) )
 			df=read_ticks(sec_num,xday)
-			if type(df)==type(None): break 
+			#if type(df)==type(None): break 
 			#time.sleep(delay)
+
 	thread_complete[thread_id]=True
 	print("thread %d complete"%thread_id)
 	#threading.currentThread().exit()
@@ -66,11 +72,12 @@ def get_queue():
 	con1=True
 
 	while con1==True :
+		#print("consume")
 		if q.qsize()>0:
 			df=q.get()
 			collect_count+=1
-			df.to_sql('tick_data',con,if_exists='replace')
-			print("%s, %s, %d entries added to database"%(str(df.sec_num[0]),str(df.date[0]),len(df.index)))
+			insert_db(df)
+			#print("%s, %s, %d entries added to database"%(str(df.sec_num[0]),str(df.date[0]),len(df.index)))
 			print("-> queue size = %d collectd %d"%(q.qsize(),collect_count))
 
 		if all_threads_complete()==False: 
@@ -86,17 +93,22 @@ def get_queue():
 def run1():
 	#cur.execute("drop table tick_data")
 	first_num=0
-	threadTotal=5 #20
-	sec_num_each_thread=2#150
+	
+
+	#queue all security names
+	start=0
+	end=3000
+	for i in range(start,end+1):
+		sec_num=600000+i
+		q_sec_num.put(sec_num)
+
+
+	threadTotal=3 #20
 	try:
 		#start producer thread
 		for i in range(threadTotal):
-			thread_complete.append(False
-
-			start=i*sec_num_each_thread+first_num
-			end=start+sec_num_each_thread
-
-			t=threading.Thread(target=fetcher,args=(i,start,end,900))
+			thread_complete.append(False)
+			t=threading.Thread(target=fetcher,args=(i,900))
 			t.deamon=True
 			t.start()
 
@@ -108,8 +120,7 @@ def run1():
 	except :
 		print('unable to start thread')
 
-	while 1:
-		pass
+
 
 	#end for
 		
