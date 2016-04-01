@@ -19,7 +19,8 @@ q_sec_num=queue.Queue()
 
 engine = create_engine('sqlite:///test.db')
 def insert_db(df):
-    df.to_sql('tick_data', engine, if_exists='append')
+    #df.to_sql('tick_data', engine, if_exists='append')
+    print("insert")
 
 def connect_DB():
 	global con,cur
