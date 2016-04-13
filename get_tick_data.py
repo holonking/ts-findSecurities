@@ -10,11 +10,10 @@ import tushare as ts
 
 
 DB_FILE = 'test.db'
-N_THREADS = 10
+N_THREADS = 2
 
-
-
-
+queue_count=0
+collected_count=0
 engine = create_engine('sqlite:///' + DB_FILE)
 
 
@@ -28,8 +27,8 @@ def _download_data(stock, date):
 
 def _make_jobs(q_job,istart,iend):
     # generate date range
-    start_date = '2015-10-01'
-    end_date = '2015-10-10'
+    start_date = '2015-01-29'
+    end_date = '2015-01-30'
     date_range = arrow.Arrow.range('day',
             arrow.get(start_date), arrow.get(end_date))
     date_range = [date.format('YYYY-MM-DD') for date in date_range]
@@ -43,7 +42,7 @@ def _make_jobs(q_job,istart,iend):
             q_job.put((stock, date))
 
 def insert_db(df):
-    df.to_sql('stock_data', engine, if_exists='append')
+    df.to_sql('tick_data', engine, if_exists='append')
 
 def symbol_is_stock(symbol):
     if not re.match('\d{6}', symbol):
@@ -59,10 +58,9 @@ def symbol_is_stock(symbol):
 def get_stocks(istart,iend):
     def fetcher_thread(id_, q_job, q_res, e_end):
         print("starting fetcher {}".format(id_))
-        while not e_end.is_set():
+        while not e_end.is_set() :
             try:
                 stock, date = q_job.get(timeout=0.1)
-                
             except queue.Empty:
                 continue
             print("fetching {}, {}".format(stock, date))
@@ -75,15 +73,18 @@ def get_stocks(istart,iend):
 
     def writer_thread(q_res):
         print("starting writer")
-        while not e_end.is_set():
+        while not e_end.is_set() :
             try:
                 stock, date, df = q_res.get(timeout=0.2)
+                global collected_count
+                collected_count+=1
+                print("-------queue size={} collected {}".format(queue_count,collected_count))
             except queue.Empty:
                 continue
             df.insert(0, 'stock', stock)
             df.insert(0, 'date', date)
-            insert_db(df)
-            q_res.task_done()
+            #insert_db(df)
+            q_res.task_done()            
             print("writing {}, {}".format(stock, date))
         print("writer exited")
 
@@ -117,8 +118,8 @@ def get_stocks(istart,iend):
 
 
 def main():
-    get_stocks(600000,604000)
-    get_stocks(0,4000)
+    get_stocks(600000,600020)
+    #get_stocks(0,4000)
 
 if __name__ == '__main__':
     main()

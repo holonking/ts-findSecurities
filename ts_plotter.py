@@ -6,10 +6,8 @@ import matplotlib.pyplot as plt
 import matplotlib.animation as animation
 import sqlite3
 
-COLOR_STEELBLUE='#4682b4'
-COLOR_EMA12='#99ff00'
-COLOR_EMA26='#ffcc33'
-EWMA_TIME_SCALE=[2,6,12]
+
+
 
 con=sqlite3.connect('stock.db')
 cur=con.cursor()
