@@ -15,8 +15,8 @@ class Trader():
         self.macd_up,self.macd_dn=find_reverse(df.macd)
         self.macds_up,self.macds_dn=find_reverse(df.macd_s)
         self.macdl_up,self.macdl_dn=find_reverse(df.macd_l)
-        self.macdc_up,self.macdc_dn=find_reverse(df.macdc)
-        self.htgc_up,self.htgc_dn=find_reverse(df.htgc)
+        #self.macdc_up,self.macdc_dn=find_reverse(df.macdc)
+        #self.htgc_up,self.htgc_dn=find_reverse(df.htgc)
         self.htgs_up,self.htgs_dn=find_reverse(df.htg_s)
 
 
@@ -26,12 +26,16 @@ class Trader():
         self.htgs_uc,self.htgs_dc=find_cross_zero(df.htg_s)
         self.htgl_uc,self.htgl_dc=find_cross_zero(df.htg_l)
         self.htgs_p_uc,self.htgs_p_dc=find_possible_cross_zero(df.htg_s)
-        self.htgc_uc,self.htgc_dc=find_reverse(df.htgc)
+        #self.htgc_uc,self.htgc_dc=find_reverse(df.htgc)
+
+        self.macd_uc,self.macd_dc=find_cross_zero(df.macd)
 
         self.macd_roc=df.macd-df.macd.shift()
         self.macds_roc=df.macd_s-df.macd_s.shift()
         self.macdl_roc=df.macd_l-df.macd_l.shift()
         self.htg_roc=df.htg-df.htg.shift()
+        self.htgs_roc=df.htg_s-df.htg_s.shift()
+        self.htgl_roc=df.htg_l-df.htg_l.shift()
 
         #find K up corss and down crossD
         self.kdj_uc,self.kdj_dc=find_KD_cross(df)
@@ -40,14 +44,15 @@ class Trader():
         self.i_htgl_up,temp=get_adjacent_index(i,self.htgl_up.index)
         self.i_htgs_up,temp=get_adjacent_index(i,self.htgs_up.index)
         self.i_htgs_uc,temp=get_adjacent_index(i,self.htgs_uc.index)
-        self.i_htgc_uc,temp=get_adjacent_index(i,self.htgc_uc.index)
+        #self.i_htgc_uc,temp=get_adjacent_index(i,self.htgc_uc.index)
 
         self.i_macd_up,temp=get_adjacent_index(i,self.macd_up.index)
         self.i_macds_up,temp=get_adjacent_index(i,self.macds_up.index)
         self.i_macdl_up,temp=get_adjacent_index(i,self.macdl_up.index)
-        self.i_macdc_up,temp=get_adjacent_index(i,self.macdc_up.index)
-        self.i_htgc_up,temp=get_adjacent_index(i,self.htgc_up.index)
+        #self.i_macdc_up,temp=get_adjacent_index(i,self.macdc_up.index)
+        #self.i_htgc_up,temp=get_adjacent_index(i,self.htgc_up.index)
 
+        self.i_macd_uc,temp=get_adjacent_index(i,self.macd_uc.index)
         self.i_htg_uc,temp=get_adjacent_index(i,self.htg_uc.index)
         self.i_htgs_uc,temp=get_adjacent_index(i,self.htgs_uc.index)
         self.i_htgs_p_uc,temp=get_adjacent_index(i,self.htgs_p_uc.index)
@@ -58,10 +63,10 @@ class Trader():
         self.i_macd_dn,temp=get_adjacent_index(i,self.macd_dn.index)
         self.i_macds_dn,temp=get_adjacent_index(i,self.macds_dn.index)
         self.i_macdl_dn,temp=get_adjacent_index(i,self.macdl_dn.index)
-        self.i_macdc_dn,temp=get_adjacent_index(i,self.macdc_dn.index)
-        self.i_htgc_dn,temp=get_adjacent_index(i,self.htgc_dn.index)
+        #self.i_macdc_dn,temp=get_adjacent_index(i,self.macdc_dn.index)
+       # self.i_htgc_dn,temp=get_adjacent_index(i,self.htgc_dn.index)
         
-        self.i_htgc_dc,temp=get_adjacent_index(i,self.htgc_dc.index)
+        #self.i_htgc_dc,temp=get_adjacent_index(i,self.htgc_dc.index)
         self.i_htg_dc,temp=get_adjacent_index(i,self.htg_dc.index)
         self.i_htgs_dc,temp=get_adjacent_index(i,self.htgs_dc.index)
         self.i_htgs_p_dc,temp=get_adjacent_index(i,self.htgs_p_dc.index)
@@ -77,17 +82,20 @@ class Trader_testing01(Trader):
     def is_buy_signal(self,i):
         signal=False;
         super().get_feature_index(i)
-        con1= ((i-self.i_htgs_up)<1)
-        con1&=((i-self.i_macds_up)<2)
-        con1&=self.macds_roc[i]>0#0.3
-        con1&=self.df.KDJ_J[i]<self.j_range_b[0]
-
-        #this is the quick dip reverse
-        con2 =((i-self.i_htgs_uc)<1)&((i-self.i_htgs_dc)<3)
-        con2&=self.df.KDJ_J[i]<self.j_range_b[0]
+        con1=(i-self.i_htgl_up)<1
+        con1&=abs(self.macdl_roc[i])<0.1
+        con1&=(i-self.i_kdj_uc)<2
+        con1&=self.df.KDJ_K[i]<35
+        #con1= ((i-self.i_htgs_up)<1)
+        #con1&=abs(self.htg_roc[i])<0.02
+        #con2 =((i-self.i_htgs_uc)<1)&((i-self.i_htgs_dc)<3)
+        #con2&=self.df.KDJ_J[i]<self.j_range_b[0]
 
 
         signal=con1 #or con2
+        if signal:
+            print("hr=%3.2f, mr=%3.2f"%(self.htg_roc[i],self.macd_roc[i]))
+
         return signal
 
     def is_sell_signal(self,i):

@@ -18,7 +18,9 @@ ttl_wincount=0
 ttl_lostcount=0
 ttl_accuracy=0
 
-
+class Features:
+    def log():
+        return
 
 class strategy_day_01:
     def __init__(self):
@@ -31,6 +33,7 @@ class strategy_day_01:
         #params[5] float    0.01-0.5    sell_macd_roc_reverse
         self.params=[2,2,2,4,0.3,0.3]
         self.mouse_move_data=[]
+        self.features=Features()
 
     def old_method_backup(self,sec_num,draw=True,log=True,df=None):
         #sec_num='600898'
@@ -171,11 +174,11 @@ class strategy_day_01:
 
             macd_name_l=['macd_l','signal_l','htg_l']
             macd_name_s=['macd_s','signal_s','htg_s']
-            macd_name_c=['macdc','signalc','htgc']
+            #macd_name_c=['macdc','signalc','htgc']
             df=fill_df_MACD_ratio(df)
             df=fill_df_MACD_ratio(df,[6,8,4],macd_name_s)
             df=fill_df_MACD_ratio(df,[24,32,18],macd_name_l)
-            df=fill_df_MACD_ratio_com(df,[12,26,9],macd_name_c)
+            #df=fill_df_MACD_ratio_com(df,[12,26,9],macd_name_c)
             df=fill_df_KDJ(df)
 
             if type(df)==type(None): return 0
@@ -189,25 +192,30 @@ class strategy_day_01:
         #add data to display when mouse move
         self.mouse_move_data.append((tdr.htg_up,'hup'))
         self.mouse_move_data.append((tdr.macd_up,'mup'))
-        self.mouse_move_data.append((tdr.macds_up,'msup'))
-        self.mouse_move_data.append((tdr.macdl_up,'mlup'))
+        self.mouse_move_data.append((tdr.macds_up,'mupS'))
+        self.mouse_move_data.append((tdr.macdl_up,'mupL'))
 
         self.mouse_move_data.append((tdr.htg_uc,'huc'))
-        self.mouse_move_data.append((tdr.htgs_uc,'hsuc'))
-        self.mouse_move_data.append((tdr.htgl_uc,'hluc'))
+        self.mouse_move_data.append((tdr.htgs_uc,'hucS'))
+        self.mouse_move_data.append((tdr.htgl_uc,'hucL'))
 
         self.mouse_move_data.append((tdr.htg_dn,'hdn'))
         self.mouse_move_data.append((tdr.macd_dn,'mdn'))
-        self.mouse_move_data.append((tdr.macds_dn,'msdn'))
-        self.mouse_move_data.append((tdr.macdl_dn,'mldn'))
+        self.mouse_move_data.append((tdr.macds_dn,'mdnS'))
+        self.mouse_move_data.append((tdr.macdl_dn,'mdnL'))
 
         self.mouse_move_data.append((tdr.htg_dc,'hdc'))
-        self.mouse_move_data.append((tdr.htgs_dc,'hsdc'))
-        self.mouse_move_data.append((tdr.htgl_dc,'hldc'))
+        self.mouse_move_data.append((tdr.htgs_dc,'hdcS'))
+        self.mouse_move_data.append((tdr.htgl_dc,'hdcL'))
 
         self.mouse_move_data.append((tdr.macd_roc,'mrc'))
-        self.mouse_move_data.append((tdr.macds_roc,'msrc'))
-        self.mouse_move_data.append((tdr.macdl_roc,'mlrc'))
+        self.mouse_move_data.append((tdr.macds_roc,'mrcS'))
+        self.mouse_move_data.append((tdr.macdl_roc,'mrcL'))
+        
+        self.mouse_move_data.append((tdr.htg_roc,'hrc'))
+        self.mouse_move_data.append((tdr.htgs_roc,'hrcS'))
+        self.mouse_move_data.append((tdr.htgl_roc,'hrcL'))
+
 
 
 
@@ -221,7 +229,7 @@ class strategy_day_01:
             plot_MACD(axes[1],df,macd_name_s)
             plot_MACD(axes[2],df)
             plot_MACD(axes[3],df,macd_name_l)
-            plot_MACD(axes[3],df,macd_name_c,color=['#00ff00','#77ff77','#ddffdd'])
+            #plot_MACD(axes[3],df,macd_name_c,color=['#00ff00','#77ff77','#ddffdd'])
             plot_KDJ(axes[4],df)
 
             axes[3].scatter(tdr.htgl_up.index,tdr.htgl_up,color='r')
@@ -231,8 +239,15 @@ class strategy_day_01:
 
             #axes[1].scatter(tdr.htgs_uc.index,tdr.htgs_uc,color='r')
             #axes[1].scatter(tdr.htgs_dc.index,tdr.htgs_dc,color='g')
-            axes[1].scatter(tdr.htgs_p_uc.index,tdr.htgs_p_uc,color='r')
-            axes[1].scatter(tdr.htgs_p_dc.index,tdr.htgs_p_dc,color='g')
+            axes[1].scatter(tdr.htgs_up.index,tdr.htgs_up,color='r')
+            axes[1].scatter(tdr.htgs_dn.index,tdr.htgs_dn,color='g')
+
+            #axes[2].scatter(tdr.htg_uc.index,tdr.htg_uc,color='r')
+            #axes[2].scatter(tdr.htg_dc.index,tdr.htg_dc,color='g')
+            axes[2].scatter(tdr.htg_up.index,tdr.htg_up,color='r')
+            axes[2].scatter(tdr.htg_dn.index,tdr.htg_dn,color='g')
+            #axes[1].scatter(tdr.htgs_p_uc.index,tdr.htgs_p_uc,color='r')
+            #axes[1].scatter(tdr.htgs_p_dc.index,tdr.htgs_p_dc,color='g')
 
             #axes[2].scatter(tdr.htg_p_uc.index,tdr.htg_p_uc,color='r')
             #axes[2].scatter(tdr.htg_p_dc.index,tdr.htg_p_dc,color='g')
@@ -279,6 +294,14 @@ class strategy_day_01:
                     if draw:trade.plot(axes[0])
                     trade=None
 
+            #safe sell
+            if(trade is not None):
+                safe_exit=((close-trade.bought)/trade.bought)<-0.05
+                if safe_exit:
+                    trade.sell(close,i)
+                    if log: trade.log()
+                    if draw:trade.plot(axes[0])
+                    trade=None
         
         #calculate total performace
         cost=0
@@ -326,7 +349,9 @@ if __name__ == '__main__':
     #stg.params=[2, 1, 4, 3, 0.038024200802617, 0.046248246566009434]
     stg.params=[1, 3, 1, 3, 0.030204634013867124, 0.02961919658863036]
     #stg.params=[2, 3, 2, 4, 0.1, 0.3]
-    if False:
+    loop=False
+    loop=True
+    if loop:
         #for i in range(102020,1002200):
         for i in range(1600020,1602200):
             try:

@@ -103,9 +103,10 @@ def make_axes(num,host=None):
     axes=[]
     fig=plt.figure()
     cid=fig.canvas.mpl_connect('motion_notify_event',on_mousemove)
-    try:
-        fig.canvas.mpl_connect('motion_notify_event',host.on_mouse_move)
-    except: pass 
+    if host is not None:
+        try:
+            fig.canvas.mpl_connect('motion_notify_event',host.on_mouse_move)
+        except: pass 
 
     for i in range(1,num+1):
         layout=(num*100)+10+i
@@ -313,6 +314,17 @@ def fill_df_MACD_ratio(df=None,params=None,names=['macd','signal','htg']):
     df[names[2]]=htg
 
     return df
+def fill_df_reverse(df,se,nameup,namedown):
+    up,dn=find_reverse(se)
+    df[nameup]=up
+    df[namedown]=dn
+    return df
+def fill_df_cross_zero(df,se,nameup,namedown):
+    up,dn=find_cross_zero(se)
+    df[nameup]=up
+    df[namedown]=dn
+    return df
+      
 def fill_df_KDJ(df):
     if type(df)==type(None): return None
     if len(df.index)<10: 
