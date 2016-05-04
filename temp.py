@@ -1,30 +1,28 @@
+import matplotlib.pyplot as plt
 import numpy as np
-import pandas as pd
 import tushare as ts
-import random as rnd
+from ts_util import *
 
-class C:
-    def __init__(self,s):
-        self.num=100
-        self.score=s
-    def run(self):
-        print('my score is ',self.score)
-
-def main():        
-    subjects=pd.Series()
-    for i in range(0,10):
-        score=rnd.randint(0,20)
-        c=C(score)
-        subjects.set_value(score,c)
-    print(subjects)
-
-    os=subjects.sort_index(ascending=False)
-    os=os.reset_index()
-    print(os)
-    print(os[0][0].run())
+#df=ts.get_hist_data('600000','2015-01-01','2016-01-01')
+connect_db('day_stock.db')
+df=load_sec_from_db_date('600000','2015-01-01','2016-01-01')
+close=df.close
 
 
-
-
-if __name__ == '__main__':
-    main()
+T = 2
+mu = 0.1
+sigma = 0.01
+S0 = 20
+dt = 0.01
+N = round(T/dt)
+#t = np.linspace(0, T, N)
+t=df.index
+w=np.array(close.tolist())
+print (w)
+#w = np.random.standard_normal(size = N) 
+W = np.cumsum(w)*np.sqrt(dt) ### standard brownian motion ###
+X = (mu-0.5*sigma**2)*t + sigma*W 
+S = S0*np.exp(X) ### geometric brownian motion ###
+plt.plot(t,w)
+#plt.plot(t,S)
+plt.show()

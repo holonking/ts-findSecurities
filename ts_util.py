@@ -1,14 +1,24 @@
 
 
 import tushare as ts
+import datetime
 import pandas as pd
 import numpy as np
-import datetime,calendar
 import matplotlib.pyplot as plt
 import matplotlib.ticker as ticker
 from matplotlib.finance import candlestick_ohlc, candlestick2_ohlc
-import matplotlib as mplot
+import matplotlib as mpl
+
 import math
+
+from sqlalchemy import create_engine
+
+from rpy2.robjects.packages import importr
+from rpy2.robjects import pandas2ri, r, Environment
+
+base = importr('base')
+stats = importr('stats')
+pandas2ri.activate()
 
 #global constance
 COLOR_01='#4682b4'
@@ -16,6 +26,18 @@ COLOR_02='#cc33cc'
 COLOR_03='#FFcc00'
 COLOR_04='#339933'
 COLOR_05='#FFcccc'
+
+COLOR_B01='#4682b4'
+COLOR_B02='#81B2DB'
+COLOR_B03='#A8C9E6'
+
+COLOR_R01='#cf3636'
+COLOR_R02='#D96868'
+COLOR_R03='#E8A2A2'
+
+COLOR_Y01='#FCBB23'
+COLOR_Y02='#FAD173'
+COLOR_Y03='#FFEE2E'
 
 COLOR_LR='#ffdddd'
 COLOR_LB='#ddddff'
@@ -31,6 +53,14 @@ EWMA_TIME_SCALE=[2,6,12]
 mouse_vlines=[]
 mouse_message=[]
 
+engine=None
+
+def connect_db(filename):
+    DB_FILE=filename
+    global engine
+    engine = create_engine('sqlite:///' + DB_FILE)
+
+
 #loads security from tushare api returns a df
 def load_sec_from_ts_days(sec_num,days):
     today=datetime.date.today()
@@ -39,7 +69,7 @@ def load_sec_from_ts_days(sec_num,days):
     return load_sec_from_ts_date(sec_num,xday,today)
 
 #loads security from tushare api returns a df
-def load_sec_from_ts_date(sec_num,start,end,min_days=10):
+def load_sec_from_ts_date(sec_num,start='2013-01-01',end='2016-01-01',min_days=10):
     #print("fetching %s"%str(sec_num))
     strDs=str(start)
     strDe=str(end)
@@ -52,11 +82,32 @@ def load_sec_from_ts_date(sec_num,start,end,min_days=10):
     df=df.reset_index()
     df.insert(0,'sec_num',sec_num)
     return df
+def load_sec_from_db_date(sec_num,start,end):
+    #print("fetching %s"%str(sec_num))
+    if engine is None:
+        print('no engine, please run connect_db(db_filename) first')
+        return
+    strDs=str(start)
+    strDe=str(end)
+    strNum=str(sec_num)
+
+    query="select * from day_data where stock='%s' and date>='%s' and date<='%s' "%(strNum,strDs,strDe) 
+    df=pd.read_sql_query(query,engine)
+    df=df.sort_index(ascending=True)
+    df=df.reset_index()
+    return df
+
 def x_formatter(x,pos=None):
         i=int(x)
         if i<len(df.date): return df.date[i]
         
         return 0
+def get_candle_array(df,i):
+    o=np.round(df.open[i],2)
+    c=np.round(df.close[i],2)
+    h=np.round(df.high[i],2)
+    l=np.round(df.low[i],2)
+    return np.round([o,c,h,l],2)
 
 #default plotter for day data
 def plot_day_default(df):
@@ -92,11 +143,11 @@ def on_mousemove(event):
     #print (event.x,',',event.y)
     if not event.inaxes:return
     for l in mouse_vlines:
-        l.set_xdata(event.xdata)
+        l.set_xdata(round(event.xdata))
         plt.draw()
 
-
-
+#remove everything but the first line2D in an axes
+#because it is a mouse cursor associated w/ mouse event
 
 
 def make_axes(num,host=None):
@@ -113,14 +164,31 @@ def make_axes(num,host=None):
         if i==1: ax=fig.add_subplot(layout)
         else: ax=fig.add_subplot(layout,sharex=axes[0])
         axes.append(ax)
-        vline=ax.axvline(50)
+        vline=ax.axvline(50,color='#aaaaaa')
         mouse_vlines.append(vline)
     plt.subplots_adjust(wspace=None, hspace=None)
-    return axes
+    return axes,fig
+
+def plot_curve_with_reverse(ax,se,color=None):
+    l=ax.plot(se,color=color)
+    color=l[0].get_color()
+    up,dn=find_reverse(se)
+    ax.scatter(up.index,up,color=color,marker='+')
+    ax.scatter(dn.index,dn,color=color,marker='x')
+
+def plot_dots(ax,se,color):
+    ax.scatter(se.index,se,color=color)
+def plot_dot_pairs(ax,se1,se2,colors=['r','g']):
+    plot_dots(ax,se1,colors[0])
+    plot_dots(ax,se2,colors[1])
+
+
+
 def plot_price(ax,df):
-    df.ema26.plot(ax=ax,color=COLOR_03)
-    df.ema12.plot(ax=ax,color=COLOR_02)
+    print('plot_price called')
     df.close.plot(ax=ax,color=COLOR_01)
+    #df.ema12.plot(ax=ax,color=COLOR_02)
+    #df.ema26.plot(ax=ax,color=COLOR_03)
 def plot_MACD(ax,df,names=['macd','signal','htg'],color=None):
     if color is not None:
         c1=color[0]
@@ -140,7 +208,7 @@ def plot_MACD(ax,df,names=['macd','signal','htg'],color=None):
     htg.plot(ax=ax,color=c1)
 
     ax.fill_between(df.index,0,df[names[2]].tolist(),color=COLOR_LB)
-def plot_KDJ(ax,df,names=['KDJ_K','KDJ_D','KDJ_J']):
+def plot_KDJ(ax,df,names=['k','d','j']):
     k=df[names[0]]
     d=df[names[1]]
     j=df[names[2]]
@@ -191,9 +259,9 @@ def plot_day_with_macdroc(df):
     htg_roc.plot(ax=ax3,color=COLOR_01)
 
     #df.KDJ_RSV.plot(ax=ax3,color='r')
-    df.KDJ_J.plot(ax=ax4,color=COLOR_03)
-    df.KDJ_D.plot(ax=ax4,color=COLOR_02)
-    df.KDJ_K.plot(ax=ax4,color=COLOR_01)
+    df.j.plot(ax=ax4,color=COLOR_03)
+    df.d.plot(ax=ax4,color=COLOR_02)
+    df.k.plot(ax=ax4,color=COLOR_01)
 
 
     x=np.linspace(0,len(df.htg)-1,len(df.htg))
@@ -290,6 +358,7 @@ def fill_df_MACD_ratio_com(df=None,params=None,names=['macd','signal','htg']):
     df[names[1]]=signal
     df[names[2]]=htg
     return df
+
 def fill_df_MACD_ratio(df=None,params=None,names=['macd','signal','htg']):
     if df is None: return None
     if len(df.index)<40: 
@@ -312,7 +381,41 @@ def fill_df_MACD_ratio(df=None,params=None,names=['macd','signal','htg']):
     df[names[0]]=macd
     df[names[1]]=signal
     df[names[2]]=htg
+    return df
+def fill_df_MACD_normalratio(df=None,params=None,names=['macd','signal','htg']):
+    if df is None: return None
+    if len(df.index)<40: 
+        #print("index length=%d <40, return None"%len(index))
+        return None
+    #df=df.sort_index(ascending=True)
+    if params is None: params=MACD_STD_PARAMS
+    pos_scale=1
+    neg_scale=1
+    
+    close=df.close
+    ema1=pd.ewma(close,span=params[0])
+    ema2=pd.ewma(close,span=params[1])
 
+    macd=(ema1-ema2)/ema2*100
+    signal=pd.ewma(macd,span=params[2])
+    htg=macd-signal
+
+    macd_max=macd.max()
+    macd_min=macd.min()
+
+    pos_scale=abs(1/macd_max)
+    neg_scale=abs(1/macd_min)
+
+    macd=macd.map(lambda x :x*neg_scale if x<0 else x*pos_scale)
+    signal=signal.map(lambda x :x*neg_scale if x<0 else x*pos_scale)
+    htg=htg.map(lambda x :x*neg_scale if x<0 else x*pos_scale)
+
+
+    #df['ema'+str(params[0])]=ema1
+    #df['ema'+str(params[1])]=ema2
+    df[names[0]]=macd
+    df[names[1]]=signal
+    df[names[2]]=htg
     return df
 def fill_df_reverse(df,se,nameup,namedown):
     up,dn=find_reverse(se)
@@ -325,31 +428,34 @@ def fill_df_cross_zero(df,se,nameup,namedown):
     df[namedown]=dn
     return df
       
-def fill_df_KDJ(df):
+def fill_df_KDJ(df,param=[9,2],names=['k','d','j']):
     if type(df)==type(None): return None
     if len(df.index)<10: 
         #print("index length=%d <40, return None"%len(index))
         return None
-    roll_low=pd.rolling_min(df.low,9)
+    roll_low=pd.rolling_min(df.low,param[0])
     #roll_low.fillna(value=pd.expanding_min(df.low),inplace=True) #ask chiu
-    roll_high=pd.rolling_max(df.high,9)
+    roll_high=pd.rolling_max(df.high,param[0])
     #roll_high.fillna(value=pd.expanding_min(df.high),inplace=True) #ask chiu
     roll_dif=roll_high-roll_low
     rsv=(df.close-roll_low)/(roll_dif)*100
     #print(rsv)
-    df['KDJ_RSV']=rsv
-    df['KDJ_K']=pd.ewma(rsv,com=2) #look up 'com'
-    df['KDJ_D']=pd.ewma(df.KDJ_K, com=2)
-    df['KDJ_J']=3*df.KDJ_K-2*df.KDJ_D
+    #df['KDJ_RSV']=rsv
+    k=pd.ewma(rsv,com=param[1]) #look up 'com'
+    d=pd.ewma(k, com=param[1])
+    j=3*k-2*d
+    df[names[0]]=k
+    df[names[1]]=d
+    df[names[2]]=j
     return df
 
-def find_KD_cross(df):
-    k_top_d=df.KDJ_K>df.KDJ_D
-    upcon=(k_top_d==True)& (k_top_d.shift()==False)
-    dncon=(k_top_d==False)& (k_top_d.shift()==True)
+def find_se_cross(se1,se2):
+    mask=se1>se2
+    upcon=(mask==True)& (mask.shift()==False)
+    dncon=(mask==False)& (mask.shift()==True)
 
-    upcross=df.KDJ_K[upcon]
-    dncross=df.KDJ_K[dncon]
+    upcross=se1[upcon]
+    dncross=se1[dncon]
 
     return upcross,dncross
 
@@ -389,6 +495,21 @@ def find_reverse(se):
     dnreverse=se[dncon]
 
     return upreverse,dnreverse
+
+def find_reverse_fit(se,length=12):
+    up=pd.Series()
+    dn=pd.Series()
+    
+    con1=se.shift()-se.shift(2)<0
+    con2=se-se.shift()<0
+    upcon=(con1==True)&(con2==False)
+    dncon=(con1==False)&(con2==True)
+
+    upreverse=se[upcon]
+    dnreverse=se[dncon]
+
+    return upreverse,dnreverse
+
 def find_cross_zero(se):
     mask_d=(se<0)&(se.shift()>0)
     mask_u=(se>0)&(se.shift()<0)
@@ -497,6 +618,10 @@ def get_list_interpolated_indice(set1,minDistFactor=0.01,iteration=5,offsetX=0):
         outY.append(set1[d])
 
     return pd.Series(outY,index=outX)
+def get_aligned_day_data(ref,subject):
+    d=pd.DataFrame(ref.date)
+    outdata=pd.merge(d,subject,how='left')
+    return outdata
 
 def get_list_valley(set1):
     outData=[];
@@ -548,8 +673,86 @@ def get_moving_roc(se,length=9):
     roc=se-se.shift()
     mroc=pd.ewma(roc,9)
     return mroc
+def get_normalized_series(se):
+    smax=se.max()
+    smin=se.min()
+    scalep=abs(1/smax)
+    scalen=abs(1/smin)
+    normalized=se.map(lambda x: x*scalep if x>0 else x*scalen)
+    return normalized
+def get_normalized_series_by_series(se,base):
+    smax=se.max()
+    smin=se.min()
+    scalep=base/smax
+    scalen=abs(base/smin)
+
+    outData=pd.Series()
+    for i in range(len(se)):
+        if se[i]>0: d=se[i]*scalep[i]
+        else: d=se[i]*scalen[i]
+        outData.set_value(i,d)
+    return outData
+        
 
 
+def get_boll(se,length=20,std_scale=2):
+    series=se
+    ave=pd.stats.moments.rolling_mean(series,length)
+    std=pd.stats.moments.rolling_std(series,length)
+
+    scaledStd=std*std_scale
+    upBand=ave+scaledStd
+    dnBand=ave-scaledStd
+
+    ave=ave.fillna(-1)
+    upBand=upBand.fillna(-1)
+    dnBand=dnBand.fillna(-1)
+
+    ave=np.round(ave,3).tolist()
+    return ave,upBand,dnBand,std
+def find_extrema(se, window=5, span_points=25):
+        #df = pd.DataFrame({'x': mpl.dates.date2num(x), 'y': y})
+        x=se.index
+        y=se
+        df = pd.DataFrame({'x': x, 'y': y})
+
+        span = span_points/len(df)
+        lo = stats.loess('y~x', df, span=span, na_action=stats.na_exclude)
+        # we have to use predict(lo) instead of lo.rx2('fitted') here, the latter 
+        # doesn't not include NAs
+        fitted = pd.Series(pandas2ri.ri2py(stats.predict(lo)), index=df.index)
+        max_ = pd.rolling_max(fitted, window, center=True)
+        min_ = pd.rolling_min(fitted, window, center=True)
+
+        df['fitted'] = fitted
+        df['max'] = max_
+        df['min'] = min_
+
+        delta = max_ - fitted
+        highs = df[delta<=0]
+        delta = min_ - fitted
+        lows = df[delta>=0]
+
+        #globals()['fe_df'] = df
+        #globals()['x'] = x
+        #globals()['y'] = y
+        #globals()['lows'] = lows
+        #globals()['highs'] = highs
+
+        return fitted, lows, highs
+
+def count_weekdays(since, until):
+    since_isoweekday = since.isoweekday() + 1
+    return len([x for x in range(since_isoweekday,since_isoweekday + (until - since).days) if x % 7 not in [0, 6]])
+
+
+def str2date(str):
+    sap=str.split('-')
+    y=int(sap[0])
+    m=int(sap[1])
+    d=int(sap[2])
+    date=datetime.date(y,m,d)
+    return date
 
 class Trade():
     def __init__(self,bought=None,sold=None,feed_b=0.002,feed_s=0.002,id=0):
@@ -563,6 +766,8 @@ class Trade():
         self.profit=0
         self.profit_rate=0
         self.id=id
+        self.max=0
+        self.min=0
 
         self.buy_time=0
         self.sell_time=0
@@ -580,8 +785,11 @@ class Trade():
         return self
 
     def buy(self,price,time):
-        self.bought=price*(1+self.feed_b)
+        bought=price*(1+self.feed_b)
+        self.bought=bought
         self.buy_time=time
+        self.max=price
+        self.min=price
         return self
 
     def sell(self,price,time):
