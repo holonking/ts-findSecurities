@@ -17,6 +17,7 @@ class Hs300:
 
         #load hs300 stock list
         self.hsdf=pd.read_csv('hs300.csv')
+        print(self.hsdf)
         print(self.hsdf.stock[0][2:])
 
         self.axes,self.fig=make_axes(2)
@@ -28,6 +29,7 @@ class Hs300:
         self.counter=0
 
         ani=animation.FuncAnimation(self.fig,self.update,1) 
+        self.update(0) 
         plt.show()
     def clear_axes(self,nums=[0,1]):
         axes=self.axes
@@ -40,7 +42,9 @@ class Hs300:
         if self.counter<len(self.hsdf.stock):
             self.clear_axes([1])
             df=load_sec_from_ts_date(self.hsdf.stock[self.counter][2:])
-            print(df)
+            ref=pd.DataFrame(self.df.date)
+            df=get_aligned_day_data(ref,df)
+            #print(df)
             #df=ts.get_hist_data(self.hsdf[self.counter][2:])
             #df=df.sort_index(ascending=True)
             #df=df.reset_index()
@@ -51,6 +55,7 @@ class Hs300:
             self.counter+=1
 
 def main():
+    #plt.ion()
     hs=Hs300()
 
 if __name__ == '__main__':

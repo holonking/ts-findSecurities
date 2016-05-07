@@ -68,6 +68,13 @@ def load_sec_from_ts_days(sec_num,days):
     xday=today-delta
     return load_sec_from_ts_date(sec_num,xday,today)
 
+def load_sec_from_ts_tick(sec_num,date):
+    df=ts.get_tick_data(sec_num,date)
+    if df is None: return None
+    df=df.sort_index(ascending=False)
+    df=df.reset_index()
+    return df
+
 #loads security from tushare api returns a df
 def load_sec_from_ts_date(sec_num,start='2013-01-01',end='2016-01-01',min_days=10):
     #print("fetching %s"%str(sec_num))
@@ -359,7 +366,7 @@ def fill_df_MACD_ratio_com(df=None,params=None,names=['macd','signal','htg']):
     df[names[2]]=htg
     return df
 
-def fill_df_MACD_ratio(df=None,params=None,names=['macd','signal','htg']):
+def fill_df_MACD_ratio(df=None,params=None,names=['macd','signal','htg'],base_value='close'):
     if df is None: return None
     if len(df.index)<40: 
         #print("index length=%d <40, return None"%len(index))
@@ -368,7 +375,7 @@ def fill_df_MACD_ratio(df=None,params=None,names=['macd','signal','htg']):
     
     if params is None: params=MACD_STD_PARAMS
     
-    close=df.close
+    close=df[base_value]
     ema1=pd.ewma(close,span=params[0])
     ema2=pd.ewma(close,span=params[1])
 
